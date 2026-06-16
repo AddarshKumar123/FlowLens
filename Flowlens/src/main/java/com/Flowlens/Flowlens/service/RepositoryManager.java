@@ -1,4 +1,4 @@
-package com.Flowlens.Flowlens;
+package com.Flowlens.Flowlens.service;
 
 import java.io.File;
 import java.nio.file.Files;
