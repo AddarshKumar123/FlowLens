@@ -18,8 +18,7 @@ public class RepositoryManager {
     @PostConstruct
     public void onStartup() {
         try {
-            // cloneRepository("https://github.com/AddarshKumar123/rootlytic_dashboard_API", "rootlytic_dashboard_API");
-            List<String> files = getAllFiles(Path.of(storagePath, "rootlytic_dashboard_API"));
+            List<Path> files = getAllFiles(Path.of(storagePath, "rootlytic_dashboard_API"));
             System.out.println(files);
         } catch (Exception e) {
             e.printStackTrace();
@@ -39,13 +38,17 @@ public class RepositoryManager {
         return Git.open(repoDir);
     }
 
-    public List<String> getAllFiles(Path repoRoot) throws Exception {
+    public List<Path> getAllFiles(Path repoRoot) throws Exception {
         try(Stream<Path>stream = Files.walk(repoRoot)) {
             return stream.filter(Files::isRegularFile)
             .filter(path -> !path.toString().contains(".git"))
             .filter(path -> path.toString().endsWith(".java"))
-            .map(path -> path.getFileName().toString())
             .toList();
         }
+    }
+
+    public String readFileContent(String repoName, String fileName) throws Exception {
+        Path filePath = Path.of(storagePath, repoName, fileName);
+        return Files.readString(filePath);
     }
 }
