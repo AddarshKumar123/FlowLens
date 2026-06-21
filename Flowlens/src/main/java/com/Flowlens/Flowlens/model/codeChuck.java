@@ -1,5 +1,7 @@
 package com.Flowlens.Flowlens.model;
 
+import java.util.Set;
+
 import lombok.Builder;
 import lombok.Data;
 
@@ -15,6 +17,8 @@ public class codeChuck {
     private String methodName;
 
     private String content;
+
+    private Set<String> calledMethods;
 
     private int startLine;
 

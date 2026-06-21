@@ -28,6 +28,44 @@ public class TreeSitterService {
         }
     }
 
+    private void extractMethods(TSNode node, String source) {
+
+        if(node.getType().equals("method_declaration")) {
+            TSNode methodNameNode = node.getChildByFieldName("name");
+            if (methodNameNode != null) {
+                String methodName = source.substring(methodNameNode.getStartByte(), methodNameNode.getEndByte());
+                System.out.println("Method: " + methodName);
+                extractInvocations(node, source);
+            }
+        }
+
+        for(int i=0;i<node.getChildCount();i++) {
+            extractMethods(node.getChild(i), source);
+        }
+    }
+
+    private void extractInvocations(TSNode node,String source) {
+
+        if(node.getType().equals("method_invocation")) {
+
+            TSNode nameNode =
+                    node.getChildByFieldName("name");
+
+            System.out.println(
+                    source.substring(
+                            nameNode.getStartByte(),
+                            nameNode.getEndByte()
+                    )
+            );
+        }
+
+        for(int i=0;i<node.getChildCount();i++) {
+
+            extractInvocations(node.getChild(i), source);
+
+        }
+    }
+
     public void parseFile(String repoName, String fileName) {
         TSParser parser = null;
         try {
@@ -36,7 +74,7 @@ public class TreeSitterService {
             parser.setLanguage(new TreeSitterJava());
             TSTree tree = parser.parseString(null, fileContent);
             TSNode rootNode = tree.getRootNode();
-            System.out.println("Root node type: " + rootNode.getType());
+            extractMethods(rootNode, fileContent);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {

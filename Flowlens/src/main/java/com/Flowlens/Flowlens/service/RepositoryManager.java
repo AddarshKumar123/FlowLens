@@ -19,7 +19,6 @@ public class RepositoryManager {
     public void onStartup() {
         try {
             List<Path> files = getAllFiles(Path.of(storagePath, "rootlytic_dashboard_API"));
-            System.out.println(files);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -49,6 +48,7 @@ public class RepositoryManager {
 
     public String readFileContent(String repoName, String fileName) throws Exception {
         Path filePath = Path.of(storagePath, repoName, fileName);
+        System.out.println(filePath);
         return Files.readString(filePath);
     }
 }
