@@ -1,10 +1,14 @@
 package com.Flowlens.Flowlens.service;
 
-import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.treesitter.TreeSitterJava;
+
+import com.Flowlens.Flowlens.model.CodeChunk;
 
 import jakarta.annotation.PostConstruct;
 
@@ -19,54 +23,61 @@ public class TreeSitterService {
         this.repositoryManager = repositoryManager;
     }
 
-    @PostConstruct
-    public void onStartup() {
-        try {
-            parseFile("rootlytic_dashboard_API", "rootlytic\\src\\main\\java\\com\\project\\rootlytic\\configuration\\SecurityConfig.java");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+    // @PostConstruct
+    // public void onStartup() {
+    //     try {
+    //         parseFile("rootlytic_dashboard_API", "rootlytic\\src\\main\\java\\com\\project\\rootlytic\\configuration\\SecurityConfig.java");
+    //     } catch (Exception e) {
+    //         e.printStackTrace();
+    //     }
+    // }
 
-    private void extractMethods(TSNode node, String source) {
+    private Set<String> extractInvocations(TSNode node, String source) {
+        Set<String> invocations = new HashSet<>();
 
-        if(node.getType().equals("method_declaration")) {
-            TSNode methodNameNode = node.getChildByFieldName("name");
-            if (methodNameNode != null) {
-                String methodName = source.substring(methodNameNode.getStartByte(), methodNameNode.getEndByte());
-                System.out.println("Method: " + methodName);
-                extractInvocations(node, source);
+        if (node.getType().equals("method_invocation")) {
+            TSNode nameNode = node.getChildByFieldName("name");
+            if (nameNode != null) {
+                String methodName = source.substring(nameNode.getStartByte(), nameNode.getEndByte());
+                invocations.add(methodName);
             }
         }
 
-        for(int i=0;i<node.getChildCount();i++) {
-            extractMethods(node.getChild(i), source);
+        for (int i = 0; i < node.getChildCount(); i++) {
+            invocations.addAll(extractInvocations(node.getChild(i), source));
         }
+
+        return invocations;
     }
 
-    private void extractInvocations(TSNode node,String source) {
+    public List<CodeChunk> getCodeChunks(TSNode node, String source) {
+        List<CodeChunk> chunks = new ArrayList<>();
 
-        if(node.getType().equals("method_invocation")) {
+        if (node.getType().equals("method_declaration")) {
+            TSNode methodNameNode = node.getChildByFieldName("name");
+            if (methodNameNode != null) {
+                String methodName = source.substring(methodNameNode.getStartByte(), methodNameNode.getEndByte());
+                Set<String> calledMethods = extractInvocations(node, source);
+                String content = source.substring(node.getStartByte(), node.getEndByte());
 
-            TSNode nameNode =
-                    node.getChildByFieldName("name");
+                CodeChunk chunk = CodeChunk.builder()
+                        .methodName(methodName)
+                        .content(content)
+                        .calledMethods(calledMethods)
+                        .build();
 
-            System.out.println(
-                    source.substring(
-                            nameNode.getStartByte(),
-                            nameNode.getEndByte()
-                    )
-            );
+                chunks.add(chunk);
+            }
         }
 
-        for(int i=0;i<node.getChildCount();i++) {
-
-            extractInvocations(node.getChild(i), source);
-
+        for (int i = 0; i < node.getChildCount(); i++) {
+            chunks.addAll(getCodeChunks(node.getChild(i), source));
         }
+
+        return chunks;
     }
 
-    public void parseFile(String repoName, String fileName) {
+    public List<CodeChunk> parseFile(String repoName, String fileName) {
         TSParser parser = null;
         try {
             String fileContent = repositoryManager.readFileContent(repoName, fileName);
@@ -74,9 +85,10 @@ public class TreeSitterService {
             parser.setLanguage(new TreeSitterJava());
             TSTree tree = parser.parseString(null, fileContent);
             TSNode rootNode = tree.getRootNode();
-            extractMethods(rootNode, fileContent);
+            return getCodeChunks(rootNode, fileContent);
         } catch (Exception e) {
             e.printStackTrace();
+            return new ArrayList<>();
         } finally {
             if (parser != null) {
                 parser.close();

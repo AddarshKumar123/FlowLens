@@ -7,7 +7,7 @@ import lombok.Data;
 
 @Builder
 @Data
-public class codeChuck {
+public class CodeChunk {
     private String id;
 
     private String filePath;
