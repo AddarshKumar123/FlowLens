@@ -50,17 +50,32 @@ public class TreeSitterService {
         return invocations;
     }
 
+    public String findClass(TSNode node, String source) {
+        TSNode current = node;
+        while (current != null) {
+            if (current.getType().equals("class_declaration")) {
+                TSNode className = current.getChildByFieldName("name");
+                if (className != null) {
+                    return source.substring(className.getStartByte(), className.getEndByte());
+                }
+            }
+            current = current.getParent();
+        }
+        return "";
+    }
+
     public List<CodeChunk> getCodeChunks(TSNode node, String source) {
         List<CodeChunk> chunks = new ArrayList<>();
-
         if (node.getType().equals("method_declaration")) {
             TSNode methodNameNode = node.getChildByFieldName("name");
             if (methodNameNode != null) {
                 String methodName = source.substring(methodNameNode.getStartByte(), methodNameNode.getEndByte());
                 Set<String> calledMethods = extractInvocations(node, source);
                 String content = source.substring(node.getStartByte(), node.getEndByte());
+                String className=findClass(methodNameNode,source);
 
                 CodeChunk chunk = CodeChunk.builder()
+                        .className(className)
                         .methodName(methodName)
                         .content(content)
                         .calledMethods(calledMethods)
