@@ -52,7 +52,7 @@ public class TreeSitterService {
 
     public String findClass(TSNode node, String source) {
         TSNode current = node;
-        while (current != null) {
+        while (current != null && !current.isNull()) {
             if (current.getType().equals("class_declaration")) {
                 TSNode className = current.getChildByFieldName("name");
                 if (className != null) {
@@ -64,7 +64,48 @@ public class TreeSitterService {
         return "";
     }
 
+    public String findPackage(TSNode node, String source) {
+        TSNode current = node;
+        while (current != null && !current.isNull()) {
+            if (current.getType().equals("package_declaration") || current.getType().equals("package")) {
+                TSNode packageName = current.getChildByFieldName("name");
+                if (packageName != null) {
+                    return source.substring(packageName.getStartByte(), packageName.getEndByte());
+                }
+            }
+            current = current.getParent();
+        }
+        return "";
+    }
+
+    private String findPackageFromRoot(TSNode node, String source) {
+        if (!node.isNull() && (node.getType().equals("package_declaration"))) {
+            System.out.println("Package declaration found with " + node.getChildCount() + " children");
+            for (int i = 0; i < node.getChildCount(); i++) {
+                TSNode child = node.getChild(i);
+                System.out.println("Child " + i + " type: " + child.getType());
+                if (!child.isNull() && !child.getType().equals("package") && !child.getType().equals(";")) {
+                    return source.substring(child.getStartByte(), child.getEndByte());
+                }
+            }
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            TSNode child = node.getChild(i);
+            if (!child.isNull()) {
+                String pkg = findPackageFromRoot(child, source);
+                if (!pkg.isEmpty()) {
+                    return pkg;
+                }
+            }
+        }
+        return "";
+    }
+
     public List<CodeChunk> getCodeChunks(TSNode node, String source) {
+        return getCodeChunks(node, source, findPackageFromRoot(node, source));
+    }
+
+    private List<CodeChunk> getCodeChunks(TSNode node, String source, String packageName) {
         List<CodeChunk> chunks = new ArrayList<>();
         if (node.getType().equals("method_declaration")) {
             TSNode methodNameNode = node.getChildByFieldName("name");
@@ -79,6 +120,7 @@ public class TreeSitterService {
                         .methodName(methodName)
                         .content(content)
                         .calledMethods(calledMethods)
+                        .packageName(packageName)
                         .build();
 
                 chunks.add(chunk);
@@ -86,7 +128,7 @@ public class TreeSitterService {
         }
 
         for (int i = 0; i < node.getChildCount(); i++) {
-            chunks.addAll(getCodeChunks(node.getChild(i), source));
+            chunks.addAll(getCodeChunks(node.getChild(i), source, packageName));
         }
 
         return chunks;
